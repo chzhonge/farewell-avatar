@@ -8,6 +8,7 @@ import (
 )
 
 type Effects struct {
+	Dust          bool   `json:"dust"`
 	Gray          bool   `json:"gray"`
 	Blur          bool   `json:"blur"`
 	BlurMax       int    `json:"blurMax"`

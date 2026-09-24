@@ -58,8 +58,10 @@
     <section>
       <div class="card">
         <h2>疊加效果</h2>
-        <div class="muted">照片效果依序為灰階、模糊、像素化；之後繪製進度條、天數角標。</div>
+        <div class="muted">照片效果依序為灰階、模糊、像素化、薩諾斯消散；之後繪製進度條、天數角標。</div>
         <div class="effect-row"><div class="effect-head"><label class="effect"><input id="gray" type="checkbox">由左至右灰階</label><button type="button" class="secondary preview-toggle" data-effect="gray" aria-expanded="false" aria-controls="panel-gray">預覽</button></div><div class="effect-preview" id="panel-gray" hidden><label for="slider-gray">此效果的預覽日期</label><input id="slider-gray" type="range" min="0" max="0" step="1" value="0" disabled><div class="range-labels"><span id="range-start-gray">開始日</span><span id="range-end-gray">離職日</span></div><p id="date-gray" class="muted">—</p><p id="hint-gray" class="muted">選擇圖片後會在此預覽。</p><img id="img-gray" class="preview-image" alt="由左至右灰階預覽" hidden></div></div>
+        <div class="effect-row"><div class="effect-head"><label class="effect"><input id="dust" type="checkbox">薩諾斯消散</label><button type="button" class="secondary preview-toggle" data-effect="dust" aria-expanded="false" aria-controls="panel-dust">預覽</button></div><div class="effect-preview" id="panel-dust" hidden><label for="slider-dust">此效果的預覽日期</label><input id="slider-dust" type="range" min="0" max="0" step="1" value="0" disabled><div class="range-labels"><span id="range-start-dust">開始日</span><span id="range-end-dust">離職日</span></div><p id="date-dust" class="muted">—</p><p id="hint-dust" class="muted">選擇圖片後會在此預覽。</p><img id="img-dust" class="preview-image" alt="薩諾斯消散預覽" hidden></div></div>
+        <small>薩諾斯消散：照片從右側碎裂，粒子向右飄散；離職日留下白底，進度條與天數角標仍保留。</small>
         <div class="effect-row"><div class="effect-head"><label class="effect"><input id="blur" type="checkbox">逐漸模糊</label><button type="button" class="secondary preview-toggle" data-effect="blur" aria-expanded="false" aria-controls="panel-blur">預覽</button></div><div class="options" data-for="blur"><label for="blurMax">離職日最大模糊半徑（0–20）</label><input id="blurMax" type="number" min="0" max="20"><input id="blurMaxSlider" type="range" min="0" max="20" aria-label="最大模糊半徑拉桿"></div><div class="effect-preview" id="panel-blur" hidden><label for="slider-blur">此效果的預覽日期</label><input id="slider-blur" type="range" min="0" max="0" step="1" value="0" disabled><div class="range-labels"><span id="range-start-blur">開始日</span><span id="range-end-blur">離職日</span></div><p id="date-blur" class="muted">—</p><p id="hint-blur" class="muted">選擇圖片後會在此預覽。</p><img id="img-blur" class="preview-image" alt="逐漸模糊預覽" hidden></div></div>
         <div class="effect-row"><div class="effect-head"><label class="effect"><input id="pixel" type="checkbox">逐漸像素化</label><button type="button" class="secondary preview-toggle" data-effect="pixel" aria-expanded="false" aria-controls="panel-pixel">預覽</button></div><div class="options" data-for="pixel"><label for="pixelMax">離職日最大方塊邊長（2–64）</label><input id="pixelMax" type="number" min="2" max="64"><input id="pixelMaxSlider" type="range" min="2" max="64" aria-label="最大方塊邊長拉桿"></div><div class="effect-preview" id="panel-pixel" hidden><label for="slider-pixel">此效果的預覽日期</label><input id="slider-pixel" type="range" min="0" max="0" step="1" value="0" disabled><div class="range-labels"><span id="range-start-pixel">開始日</span><span id="range-end-pixel">離職日</span></div><p id="date-pixel" class="muted">—</p><p id="hint-pixel" class="muted">選擇圖片後會在此預覽。</p><img id="img-pixel" class="preview-image" alt="逐漸像素化預覽" hidden></div></div>
         <div class="effect-row"><div class="effect-head"><label class="effect"><input id="ring" type="checkbox">外圈倒數進度條</label><button type="button" class="secondary preview-toggle" data-effect="ring" aria-expanded="false" aria-controls="panel-ring">預覽</button></div><div class="options" data-for="ring"><label for="ringColor">進度顏色</label><input id="ringColor" type="color"></div><div class="effect-preview" id="panel-ring" hidden><label for="slider-ring">此效果的預覽日期</label><input id="slider-ring" type="range" min="0" max="0" step="1" value="0" disabled><div class="range-labels"><span id="range-start-ring">開始日</span><span id="range-end-ring">離職日</span></div><p id="date-ring" class="muted">—</p><p id="hint-ring" class="muted">選擇圖片後會在此預覽。</p><img id="img-ring" class="preview-image" alt="外圈倒數進度條預覽" hidden></div></div>
@@ -90,14 +92,14 @@
 <script>
 const $ = id => document.getElementById(id);
 let statusData, previewURL, todayPreviewURL, fullTimer, fullSequence = 0, todaySequence = 0;
-const effectNames = ['gray', 'blur', 'pixel', 'ring', 'badge'];
+const effectNames = ['gray', 'blur', 'pixel', 'dust', 'ring', 'badge'];
 const effectPreviews = Object.fromEntries(effectNames.map(name => [name, {date:'', url:null, timer:null, sequence:0}]));
 
 function settings() {
   return {
     mode: $('mode').value, startDate: $('start').value, endDate: $('end').value, timezone: $('timezone').value,
     crop: {mode: $('cropMode').value, x: Number($('cropX').value), y: Number($('cropY').value), zoom: Number($('cropZoom').value)},
-    effects: {gray: $('gray').checked, blur: $('blur').checked, blurMax: Number($('blurMax').value),
+    effects: {dust: $('dust').checked, gray: $('gray').checked, blur: $('blur').checked, blurMax: Number($('blurMax').value),
       pixel: $('pixel').checked, pixelMax: Number($('pixelMax').value), ring: $('ring').checked,
       ringColor: $('ringColor').value, badge: $('badge').checked, badgePosition: $('badgePosition').value}
   };
@@ -238,7 +240,7 @@ async function load() {
   const response = await request('/api/status'); statusData = await response.json();
   const s = statusData.settings, crop = s.crop?.mode ? s.crop : {mode:'fit', x:50, y:50, zoom:100};
   const values = {mode:s.mode || 'slack', start:s.startDate, end:s.endDate, timezone:s.timezone, cropMode:crop.mode, cropX:crop.x, cropY:crop.y, cropZoom:crop.zoom,
-    gray:s.effects.gray, blur:s.effects.blur, blurMax:s.effects.blurMax, pixel:s.effects.pixel, pixelMax:s.effects.pixelMax,
+    dust:s.effects.dust, gray:s.effects.gray, blur:s.effects.blur, blurMax:s.effects.blurMax, pixel:s.effects.pixel, pixelMax:s.effects.pixelMax,
     ring:s.effects.ring, ringColor:s.effects.ringColor, badge:s.effects.badge, badgePosition:s.effects.badgePosition};
   for (const [id,value] of Object.entries(values)) {
     if ($(id).type === 'checkbox') $(id).checked = value;
@@ -267,7 +269,7 @@ $('download').onclick = () => { location.href = '/api/download?date=' + encodeUR
 $('dateSlider').addEventListener('input', () => { $('date').value = dateFromDay(dayNumber($('start').value) + Number($('dateSlider').value)); queueFull(); });
 $('date').addEventListener('change', () => { syncSlider('dateSlider', $('date').value, 'rangeStart', 'rangeEnd'); queueFull(); });
 for (const id of ['start','end']) $(id).addEventListener('change', () => { syncDates(); queueAll(); });
-for (const id of ['image','cropMode','gray','blur','pixel','ring','ringColor','badge','badgePosition','timezone']) $(id).addEventListener('change', queueAll);
+for (const id of ['image','cropMode','dust','gray','blur','pixel','ring','ringColor','badge','badgePosition','timezone']) $(id).addEventListener('change', queueAll);
 $('mode').addEventListener('change', queueAll);
 for (const id of ['cropX','cropY','cropZoom']) $(id).addEventListener('input', queueAll);
 for (const [field, slider] of [['blurMax','blurMaxSlider'], ['pixelMax','pixelMaxSlider']]) {
