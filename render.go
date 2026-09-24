@@ -10,6 +10,7 @@ import (
 	_ "image/jpeg"
 	"image/png"
 	"math"
+	"math/rand"
 	"strconv"
 )
 
@@ -114,6 +115,9 @@ func renderAvatar(source []byte, s Settings, date string) ([]byte, error) {
 		if block > 1 {
 			pixelate(dst, block)
 		}
+	}
+	if s.Effects.Dust {
+		dust(dst, p)
 	}
 	if s.Effects.Ring {
 		c, _ := parseColor(s.Effects.RingColor)
@@ -268,6 +272,40 @@ func badge(img *image.RGBA, remaining int, pos string) {
 				rect := image.Rect(x+10+(k*6+gx)*scale, y+10+gy*scale, x+10+(k*6+gx+1)*scale, y+10+(gy+1)*scale)
 				draw.Draw(img, rect, &image.Uniform{C: color.White}, image.Point{}, draw.Src)
 			}
+		}
+	}
+}
+
+// Dust uses a fixed seed so fragments follow the same paths across dates and renders.
+func dust(img *image.RGBA, p float64) {
+	if p <= 0 {
+		return
+	}
+	src := image.NewRGBA(img.Bounds())
+	copy(src.Pix, img.Pix)
+	draw.Draw(img, img.Bounds(), image.NewUniform(color.White), image.Point{}, draw.Src)
+	if p >= 1 {
+		return
+	}
+	rng := rand.New(rand.NewSource(1))
+	const cell = 4
+	for y := 0; y < avatarSize; y += cell {
+		for x := 0; x < avatarSize; x += cell {
+			start := 0.78*(1-float64(x)/avatarSize) + 0.12*rng.Float64()
+			speed, drift := 100+180*rng.Float64(), -80+160*rng.Float64()
+			life := (p - start) / 0.22
+			rect := image.Rect(x, y, x+cell, y+cell)
+			if life <= 0 {
+				draw.Draw(img, rect, src, rect.Min, draw.Src)
+				continue
+			}
+			if life >= 1 {
+				continue
+			}
+			size := max(1, int(math.Ceil(cell*(1-life))))
+			target := image.Rect(x+int(speed*life), y+int(drift*life), x+int(speed*life)+size, y+int(drift*life)+size)
+			mask := image.NewUniform(color.Alpha{A: uint8(255 * (1 - life))})
+			draw.DrawMask(img, target, src, rect.Min, mask, image.Point{}, draw.Over)
 		}
 	}
 }

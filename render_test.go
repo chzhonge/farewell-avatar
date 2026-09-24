@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"image"
 	"image/color"
 	"image/png"
@@ -165,5 +166,72 @@ func TestCropPositionAndZoom(t *testing.T) {
 	}
 	if got := zoomed.RGBAAt(639, 320); got.B != 255 {
 		t.Fatalf("zoom end %v", got)
+	}
+}
+
+func TestDustProgressAndDeterminism(t *testing.T) {
+	s := defaultSettings()
+	s.StartDate, s.EndDate = "2026-09-01", "2026-09-05"
+	s.Effects.Gray = false
+	if err := json.Unmarshal([]byte(`{"dust":true}`), &s.Effects); err != nil {
+		t.Fatal(err)
+	}
+	src := testSource(t)
+	render := func(date string) ([]byte, image.Image) {
+		t.Helper()
+		data, err := renderAvatar(src, s, date)
+		if err != nil {
+			t.Fatal(err)
+		}
+		img, err := png.Decode(bytes.NewReader(data))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return data, img
+	}
+	for _, date := range []string{"2026-08-31", "2026-09-01"} {
+		data, _ := render(date)
+		if !bytes.Equal(data, src) {
+			t.Fatal("dust changed the starting image")
+		}
+	}
+	mid, img := render("2026-09-03")
+	if bytes.Equal(mid, src) {
+		t.Fatal("dust did not change the midpoint image")
+	}
+	again, _ := render("2026-09-03")
+	if !bytes.Equal(mid, again) {
+		t.Fatal("same date produced different particles")
+	}
+	white := color.RGBA{255, 255, 255, 255}
+	leftWhite, rightWhite := 0, 0
+	for y := 0; y < avatarSize; y++ {
+		for x := 0; x < avatarSize; x++ {
+			if color.RGBAModel.Convert(img.At(x, y)) == white {
+				if x < avatarSize/2 {
+					leftWhite++
+				} else {
+					rightWhite++
+				}
+			}
+		}
+	}
+	if rightWhite <= leftWhite || rightWhite == avatarSize*avatarSize/2 {
+		t.Fatal("expected rightward dissolution with visible particles")
+	}
+	for _, date := range []string{"2026-09-05", "2026-09-06"} {
+		_, end := render(date)
+		for y := 0; y < avatarSize; y++ {
+			for x := 0; x < avatarSize; x++ {
+				if color.RGBAModel.Convert(end.At(x, y)) != white {
+					t.Fatal("final image is not white")
+				}
+			}
+		}
+	}
+	s.Effects.Ring, s.Effects.Badge = true, true
+	_, end := render("2026-09-05")
+	if color.RGBAModel.Convert(end.At(320, 10)) == white || color.RGBAModel.Convert(end.At(580, 580)) == white {
+		t.Fatal("dust erased overlays")
 	}
 }

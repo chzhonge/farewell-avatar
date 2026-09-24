@@ -69,6 +69,10 @@ func TestPreviewUploadSameBytesAndDedupRestart(t *testing.T) {
 	client.base = server.URL
 	dir := t.TempDir()
 	a := seededApp(t, dir, client)
+	a.state.Settings.Effects.Dust = true
+	if err := a.save(); err != nil {
+		t.Fatal(err)
+	}
 	body, _ := json.Marshal(previewRequest{Date: "2026-09-24", Settings: a.state.Settings})
 	req := httptest.NewRequest("POST", "http://127.0.0.1:8080/api/preview", bytes.NewReader(body))
 	rec := httptest.NewRecorder()
