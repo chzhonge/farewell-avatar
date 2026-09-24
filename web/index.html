@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>離職頭像倒數器</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,sans-serif;color:#e7edf9;background:#0d1322}
+    *{box-sizing:border-box}body{margin:0}.wrap{max-width:1120px;margin:auto;padding:28px}
+    h1{font-size:2rem;margin:0 0 6px}h2{margin:0 0 15px;font-size:1.2rem}.muted,small{color:#aab8d1}
+    main{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,450px);gap:22px;margin-top:24px}.setup-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 24px}
+    .card{background:#172039;border:1px solid #2c3959;border-radius:18px;padding:22px;margin-bottom:18px}
+    label{display:block;margin:13px 0 5px}input,select,button{font:inherit}
+    input[type=date],input[type=text],input[type=number],select,input[type=file]{width:100%;padding:10px;background:#0f172b;color:#fff;border:1px solid #455475;border-radius:9px}
+    input[type=color]{height:38px;width:76px;background:none;border:0}
+    input[type=checkbox],input[type=range]{accent-color:#77d9ef}input[type=checkbox]{width:19px;height:19px}
+    input[type=range]{width:100%;margin:12px 0 4px;cursor:pointer}input[type=range]:disabled{opacity:.45;cursor:default}
+    .range-labels{display:flex;justify-content:space-between;gap:12px;color:#aab8d1;font-size:.82rem}
+    .effect{display:flex;align-items:center;gap:10px;font-weight:650;margin:0}.effect-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:9px 0}.options{padding:0 0 8px 30px}.effect-row{border-bottom:1px solid #293550;padding:5px 0}.preview-toggle{white-space:nowrap;padding:7px 11px!important;font-size:.9rem!important}.effect-preview{background:#0f172b;border:1px solid #354360;border-radius:12px;padding:13px;margin:12px 0}.effect-preview img{max-width:240px;display:block;margin:12px auto}
+    button,.button{display:inline-block;border:0;border-radius:9px;background:#70d1e9;color:#07101e;padding:10px 14px;font-weight:700;cursor:pointer;text-decoration:none;margin:4px 5px 4px 0}
+    button.secondary,.button.secondary{background:#2c3855;color:#f2f6ff}button:hover,.button:hover{filter:brightness(1.1)}
+    .preview-image{width:100%;aspect-ratio:1;object-fit:contain;background:#0b1221;border-radius:12px;border:1px solid #455475}
+    .summary{font-size:1.3rem;font-weight:700}
+    #message{padding:12px;border-radius:9px;min-height:44px;background:#223453;white-space:pre-wrap}.error{color:#ffb8b8!important}.good{color:#abefce!important}
+    [hidden]{display:none!important}
+    @media(max-width:800px){main,.setup-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body><div class="wrap">
+  <h1>離職頭像倒數器</h1>
+  <div class="muted">在本機產生每日頭像，可自行下載，或選擇由 Slack 自動更新。</div>
+  <div class="card" style="margin-top:24px">
+        <h2>基本設定</h2>
+        <div class="setup-grid"><div>
+        <label for="image">原圖（PNG、JPEG、GIF，最多 10 MB）</label>
+        <input id="image" type="file" accept="image/png,image/jpeg,image/gif">
+        <label for="cropMode">正方形圖片處理</label>
+        <select id="cropMode"><option value="fit">完整顯示，空白處留白</option><option value="crop">填滿正方形，裁切邊緣</option></select>
+        <div id="cropOptions" hidden>
+          <label for="cropX">水平位置：<span id="cropXValue">50%</span></label><input id="cropX" type="range" min="0" max="100" value="50">
+          <label for="cropY">垂直位置：<span id="cropYValue">50%</span></label><input id="cropY" type="range" min="0" max="100" value="50">
+          <label for="cropZoom">縮放：<span id="cropZoomValue">100%</span></label><input id="cropZoom" type="range" min="100" max="300" value="100">
+          <small>水平／垂直位置控制裁切範圍；100% 縮放會取原圖中最大的正方形。</small>
+        </div>
+        </div><div>
+        <label for="mode">使用模式</label>
+        <select id="mode"><option value="local">純本機：自行下載並更換頭像</option><option value="slack">Slack：每日自動更新</option></select>
+        <small id="modeHelp">純本機模式不需 Slack app；儲存後生效。</small>
+        <label for="start">開始日</label><input id="start" type="date">
+        <label for="end">離職日</label><input id="end" type="date">
+        <label for="timezone">時區（IANA 名稱）</label>
+        <input id="timezone" type="text" list="zones">
+        <datalist id="zones"><option value="Asia/Taipei"><option value="Asia/Tokyo"><option value="America/Los_Angeles"><option value="Europe/London"><option value="UTC"></datalist>
+        </div></div>
+        <p><button id="save">儲存設定與原圖</button></p>
+  </div>
+  <main>
+    <section>
+      <div class="card">
+        <h2>疊加效果</h2>
+        <div class="muted">照片效果依序為灰階、模糊、像素化；之後繪製進度條、天數角標。</div>
+        <div class="effect-row"><div class="effect-head"><label class="effect"><input id="gray" type="checkbox">由左至右灰階</label><button type="button" class="secondary preview-toggle" data-effect="gray" aria-expanded="false" aria-controls="panel-gray">預覽</button></div><div class="effect-preview" id="panel-gray" hidden><label for="slider-gray">此效果的預覽日期</label><input id="slider-gray" type="range" min="0" max="0" step="1" value="0" disabled><div class="range-labels"><span id="range-start-gray">開始日</span><span id="range-end-gray">離職日</span></div><p id="date-gray" class="muted">—</p><p id="hint-gray" class="muted">選擇圖片後會在此預覽。</p><img id="img-gray" class="preview-image" alt="由左至右灰階預覽" hidden></div></div>
+        <div class="effect-row"><div class="effect-head"><label class="effect"><input id="blur" type="checkbox">逐漸模糊</label><button type="button" class="secondary preview-toggle" data-effect="blur" aria-expanded="false" aria-controls="panel-blur">預覽</button></div><div class="options" data-for="blur"><label for="blurMax">離職日最大模糊半徑（0–20）</label><input id="blurMax" type="number" min="0" max="20"><input id="blurMaxSlider" type="range" min="0" max="20" aria-label="最大模糊半徑拉桿"></div><div class="effect-preview" id="panel-blur" hidden><label for="slider-blur">此效果的預覽日期</label><input id="slider-blur" type="range" min="0" max="0" step="1" value="0" disabled><div class="range-labels"><span id="range-start-blur">開始日</span><span id="range-end-blur">離職日</span></div><p id="date-blur" class="muted">—</p><p id="hint-blur" class="muted">選擇圖片後會在此預覽。</p><img id="img-blur" class="preview-image" alt="逐漸模糊預覽" hidden></div></div>
+        <div class="effect-row"><div class="effect-head"><label class="effect"><input id="pixel" type="checkbox">逐漸像素化</label><button type="button" class="secondary preview-toggle" data-effect="pixel" aria-expanded="false" aria-controls="panel-pixel">預覽</button></div><div class="options" data-for="pixel"><label for="pixelMax">離職日最大方塊邊長（2–64）</label><input id="pixelMax" type="number" min="2" max="64"><input id="pixelMaxSlider" type="range" min="2" max="64" aria-label="最大方塊邊長拉桿"></div><div class="effect-preview" id="panel-pixel" hidden><label for="slider-pixel">此效果的預覽日期</label><input id="slider-pixel" type="range" min="0" max="0" step="1" value="0" disabled><div class="range-labels"><span id="range-start-pixel">開始日</span><span id="range-end-pixel">離職日</span></div><p id="date-pixel" class="muted">—</p><p id="hint-pixel" class="muted">選擇圖片後會在此預覽。</p><img id="img-pixel" class="preview-image" alt="逐漸像素化預覽" hidden></div></div>
+        <div class="effect-row"><div class="effect-head"><label class="effect"><input id="ring" type="checkbox">外圈倒數進度條</label><button type="button" class="secondary preview-toggle" data-effect="ring" aria-expanded="false" aria-controls="panel-ring">預覽</button></div><div class="options" data-for="ring"><label for="ringColor">進度顏色</label><input id="ringColor" type="color"></div><div class="effect-preview" id="panel-ring" hidden><label for="slider-ring">此效果的預覽日期</label><input id="slider-ring" type="range" min="0" max="0" step="1" value="0" disabled><div class="range-labels"><span id="range-start-ring">開始日</span><span id="range-end-ring">離職日</span></div><p id="date-ring" class="muted">—</p><p id="hint-ring" class="muted">選擇圖片後會在此預覽。</p><img id="img-ring" class="preview-image" alt="外圈倒數進度條預覽" hidden></div></div>
+        <div class="effect-row"><div class="effect-head"><label class="effect"><input id="badge" type="checkbox">剩餘天數角標</label><button type="button" class="secondary preview-toggle" data-effect="badge" aria-expanded="false" aria-controls="panel-badge">預覽</button></div><div class="options" data-for="badge"><label for="badgePosition">角標位置</label><select id="badgePosition"><option value="bottom-right">右下</option><option value="bottom-left">左下</option><option value="top-right">右上</option><option value="top-left">左上</option></select></div><div class="effect-preview" id="panel-badge" hidden><label for="slider-badge">此效果的預覽日期</label><input id="slider-badge" type="range" min="0" max="0" step="1" value="0" disabled><div class="range-labels"><span id="range-start-badge">開始日</span><span id="range-end-badge">離職日</span></div><p id="date-badge" class="muted">—</p><p id="hint-badge" class="muted">選擇圖片後會在此預覽。</p><img id="img-badge" class="preview-image" alt="剩餘天數角標預覽" hidden></div></div>
+        <small>各效果可獨立預覽，即使未勾選啟用也能先試看；右側只疊加已勾選效果。</small>
+      </div>
+    </section>
+    <section>
+      <div class="card" id="localCard" hidden><h2>今日頭像</h2>
+        <p id="todayNote" class="muted">讀取中…</p>
+        <img id="todayPreview" class="preview-image" alt="今天依已儲存設定產生的頭像" hidden>
+        <p><a id="todayDownload" class="button" href="/api/download" hidden>下載今天的頭像</a></p>
+        <small>圖片依已儲存設定與所選時區的今天產生。下載後請自行到 Slack 更換頭像；此模式不會呼叫 Slack。</small>
+      </div>
+      <div class="card"><h2>所有效果預覽</h2>
+        <label for="date">預覽日期</label><input id="date" type="date">
+        <label for="dateSlider">拖曳日期查看變化</label><input id="dateSlider" type="range" min="0" max="0" step="1" value="0" disabled>
+        <div class="range-labels"><span id="rangeStart">開始日</span><span id="rangeEnd">離職日</span></div>
+        <p id="remaining" class="summary">—</p><p id="previewHint" class="muted">選擇圖片後會在此預覽。</p><img id="preview" class="preview-image" alt="所有效果的頭像預覽" hidden>
+        <p><button class="secondary" id="download">下載已儲存設定的圖片</button></p>
+        <small>已儲存圖片會自動顯示；預覽也可即時試看尚未儲存的原圖、裁切與效果。下載與 Slack 更新使用已儲存設定。</small>
+      </div>
+      <div id="message" role="status">請上傳原圖並儲存設定。</div>
+    </section>
+  </main>
+  <div class="card" id="slackCard"><h2>Slack</h2><p id="connection" class="muted">讀取中…</p><a class="button" href="/oauth/start">連接 Slack</a><button class="secondary" id="test">測試連線</button><button id="update">立即更新頭像</button><p><small>立即更新使用「今天」的已儲存設定；倒數期間成功時會計入今日完成紀錄。再次手動點擊仍會重新上傳。離職日後也可手動更新。</small></p><p id="history" class="muted"></p></div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+let statusData, previewURL, todayPreviewURL, fullTimer, fullSequence = 0, todaySequence = 0;
+const effectNames = ['gray', 'blur', 'pixel', 'ring', 'badge'];
+const effectPreviews = Object.fromEntries(effectNames.map(name => [name, {date:'', url:null, timer:null, sequence:0}]));
+
+function settings() {
+  return {
+    mode: $('mode').value, startDate: $('start').value, endDate: $('end').value, timezone: $('timezone').value,
+    crop: {mode: $('cropMode').value, x: Number($('cropX').value), y: Number($('cropY').value), zoom: Number($('cropZoom').value)},
+    effects: {gray: $('gray').checked, blur: $('blur').checked, blurMax: Number($('blurMax').value),
+      pixel: $('pixel').checked, pixelMax: Number($('pixelMax').value), ring: $('ring').checked,
+      ringColor: $('ringColor').value, badge: $('badge').checked, badgePosition: $('badgePosition').value}
+  };
+}
+function show(message, error = false) { $('message').textContent = message; $('message').className = error ? 'error' : 'good'; }
+async function request(path, options) {
+  const response = await fetch(path, options);
+  if (!response.ok) {
+    let body; try { body = await response.json(); } catch { body = {error: await response.text()}; }
+    throw new Error(body.error || `HTTP ${response.status}`);
+  }
+  return response;
+}
+function toggleOptions() {
+  for (const id of ['blur','pixel','ring','badge']) document.querySelector(`[data-for=${id}]`).hidden = !$(id).checked && $(`panel-${id}`).hidden;
+  $('cropOptions').hidden = $('cropMode').value !== 'crop';
+  for (const id of ['cropX','cropY','cropZoom']) $(id + 'Value').textContent = $(id).value + '%';
+  $('modeHelp').textContent = $('mode').value === 'local' ? '純本機模式不需 Slack app；儲存後生效。' : '需連接 Slack app 才能每日自動更新；儲存後生效。';
+}
+const dayNumber = date => Math.round(Date.parse(date + 'T00:00:00Z') / 86400000);
+const dateFromDay = day => new Date(day * 86400000).toISOString().slice(0, 10);
+const clampDate = (date, start, end) => !start || !end || end < start ? date : date < start ? start : date > end ? end : date;
+function syncSlider(id, date, startLabel, endLabel) {
+  const start = $('start').value, end = $('end').value, slider = $(id);
+  const valid = start && end && end >= start;
+  const total = valid ? dayNumber(end) - dayNumber(start) : 0;
+  slider.min = '0'; slider.max = String(Math.max(0, total)); slider.disabled = !valid || total === 0;
+  slider.value = String(valid && date ? Math.max(0, Math.min(total, dayNumber(date) - dayNumber(start))) : 0);
+  $(startLabel).textContent = start || '開始日'; $(endLabel).textContent = end || '離職日';
+}
+function syncDates() {
+  syncSlider('dateSlider', $('date').value, 'rangeStart', 'rangeEnd');
+  for (const name of effectNames) {
+    const state = effectPreviews[name];
+    state.date = clampDate(state.date || $('date').value, $('start').value, $('end').value);
+    syncSlider(`slider-${name}`, state.date, `range-start-${name}`, `range-end-${name}`);
+    $(`date-${name}`).textContent = state.date ? `預覽日期：${state.date}` : '—';
+  }
+}
+function queueFull() { toggleOptions(); clearTimeout(fullTimer); const seq = ++fullSequence; fullTimer = setTimeout(() => preview(seq), 120); }
+function queueEffect(name) {
+  const state = effectPreviews[name]; clearTimeout(state.timer);
+  const seq = ++state.sequence;
+  if (!$(`panel-${name}`).hidden) state.timer = setTimeout(() => previewEffect(name, seq), 120);
+}
+function queueAll() { queueFull(); for (const name of effectNames) queueEffect(name); }
+function previewOptions(s, date) {
+  const file = $('image').files[0];
+  if (file) {
+    const body = new FormData(); body.append('settings', JSON.stringify(s)); body.append('date', date); body.append('image', file);
+    return {method: 'POST', body};
+  }
+  return {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({date, settings: s})};
+}
+async function preview(sequence) {
+  let date = $('date').value;
+  const s = settings();
+  const hasDates = Boolean(s.startDate && s.endDate && s.endDate >= s.startDate);
+  if (!date) date = statusData?.today || new Date().toISOString().slice(0, 10);
+  if (!hasDates) {
+    s.startDate = date; s.endDate = date;
+    for (const name of effectNames) s.effects[name] = false;
+    $('remaining').textContent = '原圖預覽 · 設定日期後顯示倒數效果';
+  } else {
+    $('remaining').textContent = `${date} · 剩餘 ${Math.max(0, dayNumber(s.endDate) - dayNumber(date))} 天`;
+  }
+  if (!statusData?.hasImage && !$('image').files[0]) return;
+  try {
+    const response = await request('/api/preview', previewOptions(s, date));
+    const url = URL.createObjectURL(await response.blob());
+    if (sequence !== fullSequence) { URL.revokeObjectURL(url); return; }
+    if (previewURL) URL.revokeObjectURL(previewURL);
+    previewURL = url; $('preview').src = url; $('preview').hidden = false; $('previewHint').hidden = true;
+  } catch (error) {
+    if (sequence === fullSequence) {
+      $('preview').hidden = true; $('previewHint').hidden = false;
+      show(error.message, true);
+    }
+  }
+}
+async function previewEffect(name, sequence) {
+  const state = effectPreviews[name];
+  let date = state.date || $('date').value || statusData?.today || new Date().toISOString().slice(0, 10);
+  const s = settings();
+  const hasDates = Boolean(s.startDate && s.endDate && s.endDate >= s.startDate);
+  for (const effect of effectNames) s.effects[effect] = hasDates && effect === name;
+  if (!hasDates) {
+    s.startDate = date; s.endDate = date;
+    $(`date-${name}`).textContent = '請設定開始日與離職日，才能查看此效果變化';
+  } else {
+    $(`date-${name}`).textContent = `${date} · 剩餘 ${Math.max(0, dayNumber(s.endDate) - dayNumber(date))} 天`;
+  }
+  if (!statusData?.hasImage && !$('image').files[0]) return;
+  try {
+    const response = await request('/api/preview', previewOptions(s, date));
+    const url = URL.createObjectURL(await response.blob());
+    if (sequence !== state.sequence || $(`panel-${name}`).hidden) { URL.revokeObjectURL(url); return; }
+    if (state.url) URL.revokeObjectURL(state.url);
+    state.url = url; $(`img-${name}`).src = url; $(`img-${name}`).hidden = false; $(`hint-${name}`).hidden = true;
+  } catch (error) {
+    if (sequence === state.sequence && !$(`panel-${name}`).hidden) {
+      $(`img-${name}`).hidden = true; $(`hint-${name}`).hidden = false; show(error.message, true);
+    }
+  }
+}
+async function loadToday() {
+  const sequence = ++todaySequence;
+  const local = (statusData.settings.mode || 'slack') === 'local';
+  $('localCard').hidden = !local;
+  $('slackCard').hidden = local;
+  $('todayPreview').hidden = true;
+  $('todayDownload').hidden = true;
+  if (todayPreviewURL) { URL.revokeObjectURL(todayPreviewURL); todayPreviewURL = null; }
+  if (!local) return;
+  const s = statusData.settings, date = statusData.today;
+  if (!statusData.hasImage || !s.startDate || !s.endDate) {
+    $('todayNote').textContent = '請先儲存原圖、開始日與離職日。';
+    return;
+  }
+  if (date < s.startDate) {
+    $('todayNote').textContent = `尚未到開始日 ${s.startDate}；可先在下方選擇日期預覽。`;
+    return;
+  }
+  $('todayNote').textContent = `${date} · ${date > s.endDate ? '已過離職日，顯示最終效果' : `剩餘 ${Math.max(0, dayNumber(s.endDate) - dayNumber(date))} 天`}`;
+  try {
+    const response = await request('/api/download');
+    const url = URL.createObjectURL(await response.blob());
+    if (sequence !== todaySequence) { URL.revokeObjectURL(url); return; }
+    todayPreviewURL = url;
+    $('todayPreview').src = url;
+    $('todayPreview').hidden = false;
+    $('todayDownload').hidden = false;
+  } catch (error) {
+    if (sequence === todaySequence) $('todayNote').textContent = `今日圖片無法產生：${error.message}`;
+  }
+}
+async function load() {
+  const response = await request('/api/status'); statusData = await response.json();
+  const s = statusData.settings, crop = s.crop?.mode ? s.crop : {mode:'fit', x:50, y:50, zoom:100};
+  const values = {mode:s.mode || 'slack', start:s.startDate, end:s.endDate, timezone:s.timezone, cropMode:crop.mode, cropX:crop.x, cropY:crop.y, cropZoom:crop.zoom,
+    gray:s.effects.gray, blur:s.effects.blur, blurMax:s.effects.blurMax, pixel:s.effects.pixel, pixelMax:s.effects.pixelMax,
+    ring:s.effects.ring, ringColor:s.effects.ringColor, badge:s.effects.badge, badgePosition:s.effects.badgePosition};
+  for (const [id,value] of Object.entries(values)) {
+    if ($(id).type === 'checkbox') $(id).checked = value;
+    else $(id).value = value ?? '';
+  }
+  $('blurMaxSlider').value = $('blurMax').value;
+  $('pixelMaxSlider').value = $('pixelMax').value;
+  $('date').value = (s.mode || 'slack') === 'local' ? statusData.today : clampDate($('date').value || statusData.today, s.startDate, s.endDate);
+  syncDates(); toggleOptions();
+  $('connection').textContent = statusData.connected ? `已連接 ${statusData.team || 'Slack'} · ${statusData.userId}` : statusData.oauthConfigured ? '尚未連接 Slack' : '尚未設定 Slack OAuth 環境變數';
+  $('history').textContent = `最後成功：${statusData.lastSuccess?.at || '無'}\n最近失敗：${statusData.lastError?.error || '無'}`;
+  await loadToday();
+  queueAll();
+}
+$('save').onclick = async () => {
+  try {
+    const body = new FormData(); body.append('settings', JSON.stringify(settings()));
+    if ($('image').files[0]) body.append('image', $('image').files[0]);
+    await request('/api/settings', {method:'POST', body});
+    $('image').value = ''; show('設定已儲存'); await load();
+  } catch (error) { show(error.message, true); }
+};
+$('test').onclick = async () => { try { const r = await request('/api/slack/test', {method:'POST'}); const v = await r.json(); show(`${v.message} · ${v.user || ''}`); await load(); } catch (error) { show(error.message, true); } };
+$('update').onclick = async () => { try { const r = await request('/api/slack/update', {method:'POST'}); show((await r.json()).message); } catch (error) { show(error.message, true); } await load(); };
+$('download').onclick = () => { location.href = '/api/download?date=' + encodeURIComponent($('date').value); };
+$('dateSlider').addEventListener('input', () => { $('date').value = dateFromDay(dayNumber($('start').value) + Number($('dateSlider').value)); queueFull(); });
+$('date').addEventListener('change', () => { syncSlider('dateSlider', $('date').value, 'rangeStart', 'rangeEnd'); queueFull(); });
+for (const id of ['start','end']) $(id).addEventListener('change', () => { syncDates(); queueAll(); });
+for (const id of ['image','cropMode','gray','blur','pixel','ring','ringColor','badge','badgePosition','timezone']) $(id).addEventListener('change', queueAll);
+$('mode').addEventListener('change', queueAll);
+for (const id of ['cropX','cropY','cropZoom']) $(id).addEventListener('input', queueAll);
+for (const [field, slider] of [['blurMax','blurMaxSlider'], ['pixelMax','pixelMaxSlider']]) {
+  $(field).addEventListener('input', () => { if ($(field).value !== '') $(slider).value = $(field).value; queueAll(); });
+  $(slider).addEventListener('input', () => { $(field).value = $(slider).value; queueAll(); });
+}
+for (const name of effectNames) {
+  const button = document.querySelector(`.preview-toggle[data-effect="${name}"]`);
+  button.addEventListener('click', () => {
+    const panel = $(`panel-${name}`);
+    panel.hidden = !panel.hidden;
+    button.textContent = panel.hidden ? '預覽' : '收起預覽';
+    button.setAttribute('aria-expanded', String(!panel.hidden));
+    toggleOptions();
+    queueEffect(name);
+  });
+  $(`slider-${name}`).addEventListener('input', () => {
+    const state = effectPreviews[name];
+    state.date = dateFromDay(dayNumber($('start').value) + Number($(`slider-${name}`).value));
+    $(`date-${name}`).textContent = `預覽日期：${state.date}`;
+    queueEffect(name);
+  });
+}
+load().catch(error => show(error.message, true));
+</script>
+</body>
+</html>
